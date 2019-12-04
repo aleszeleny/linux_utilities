@@ -188,7 +188,7 @@ done
 
 # print processes using SWAP space sorted by selected key
 while read KB PID NAME; do
-	OVERALL=$((OVERALL+$KB))
+	OVERALL=$((OVERALL+${KB:-0}))
 	echo "`getPIDFmt $PID`   `getSizeFmt $KB`  $NAME" 
 done <<< $( getProcsSwapUsage | sort $SORT_NUMERIC $SORT_REVERSE -k ${SORT_KEY},${SORT_KEY} )
 
