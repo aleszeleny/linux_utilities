@@ -48,20 +48,37 @@ usage() {
 # for all processes using SWAP space
 #
 getProcsSwapUsage() {
-	for DIR in `find /proc/ -maxdepth 1 -type d -regex "^/proc/[0-9]+"`; do
-	    PID=`echo $DIR | cut -d / -f 3`
-	    PROGNAME=`ps -p $PID -o comm --no-headers`
+  use_rollup=0 # available on recent kernels
+  if [ -f /proc/$$/smaps_rollups ] ; then
+    use_rollup=1
+  fi
+  for DIR in `find /proc/ -maxdepth 1 -type d -regex "^/proc/[0-9]+"`; do
+      PID=`echo $DIR | cut -d / -f 3`
+      PROGNAME=`ps -p $PID -o comm --no-headers`
 
-	    for SWAP in `grep Swap $DIR/smaps 2>/dev/null| awk '{ print $2 }'`
-	    do
-		let SUM=$SUM+$SWAP
-	    done
+      if [ "$use_rollup" -eq 1 ]; then
 
-	    if (( $SUM > 0 )); then
-		echo -e "${SUM}\t${PID}\t${PROGNAME}"
-	    fi
-	    SUM=0
-	done
+        # Inaccurate, why the sum does not match free command output?
+        SUM=`grep SwapPss $DIR/smaps_rollup 2>/dev/null | awk '{ print $2 }'`
+
+      else
+
+        # Inaccurate as for processes attached to shared memory
+        # the swap segments are counted multiple times.
+        # Asuming it makes no sense to test whether SwapPss is available
+        # while smaps_rollup not.
+        for SWAP in `grep Swap $DIR/smaps 2>/dev/null| awk '{ print $2 }'`
+        do
+          let SUM=$SUM+$SWAP
+        done
+
+      fi
+
+      if (( $SUM > 0 )); then
+        echo -e "${SUM}\t${PID}\t${PROGNAME}"
+      fi
+      SUM=0
+  done
 }
 
 #
